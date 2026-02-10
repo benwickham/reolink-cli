@@ -696,6 +696,7 @@ class ReolinkClient:
 
         Args:
             alarm_mode: "manul" for manual control, "times" for timed.
+                Note: "manul" is the Reolink API's own spelling, not a typo.
             manual_switch: 1 to start, 0 to stop.
             duration: Duration in seconds (for timed mode).
 

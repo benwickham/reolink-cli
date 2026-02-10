@@ -288,8 +288,8 @@ def _cmd_watch(args: argparse.Namespace, client: ReolinkClient) -> None:
                 cmd = cmd.replace("{action}", event["action"])
                 try:
                     subprocess.Popen(cmd, shell=True)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    print_error(f"Failed to run exec command: {exc}")
 
         try:
             time.sleep(interval)
