@@ -90,6 +90,38 @@ def _cmd_ai_status(args: argparse.Namespace, client: ReolinkClient) -> None:
     output(display, title="AI Detection")
 
 
+def _cmd_motion_enable(args: argparse.Namespace, client: ReolinkClient) -> None:
+    """Enable or disable motion detection."""
+    enable = args.action == "enable"
+    client.set_md_alarm(enable=enable)
+    state = "enabled" if enable else "disabled"
+    if args.json:
+        output({"motion_detection": state}, json_mode=True)
+    else:
+        print(f"Motion detection {state}.")
+
+
+def _cmd_motion_sensitivity(args: argparse.Namespace, client: ReolinkClient) -> None:
+    """Set motion detection sensitivity."""
+    client.set_md_alarm(sensitivity=args.value)
+    if args.json:
+        output({"sensitivity": args.value}, json_mode=True)
+    else:
+        print(f"Motion sensitivity set to {args.value}.")
+
+
+def _cmd_ai_enable(args: argparse.Namespace, client: ReolinkClient) -> None:
+    """Enable or disable an AI detection type."""
+    enable = args.action == "enable"
+    ai_type = args.type
+    client.set_ai_cfg(**{ai_type: 1 if enable else 0})
+    state = "enabled" if enable else "disabled"
+    if args.json:
+        output({"type": ai_type, "state": state}, json_mode=True)
+    else:
+        print(f"AI detection for {ai_type} {state}.")
+
+
 def register(subparsers: argparse._SubParsersAction) -> None:
     """Register detection commands with the argument parser.
 
@@ -103,9 +135,34 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     motion_status = motion_sub.add_parser("status", help="Show motion detection status")
     motion_status.set_defaults(func=_cmd_motion_status)
 
+    # motion enable/disable
+    motion_enable = motion_sub.add_parser("enable", help="Enable motion detection")
+    motion_enable.set_defaults(func=_cmd_motion_enable, action="enable")
+    motion_disable = motion_sub.add_parser("disable", help="Disable motion detection")
+    motion_disable.set_defaults(func=_cmd_motion_enable, action="disable")
+
+    # motion sensitivity
+    motion_sens = motion_sub.add_parser("sensitivity", help="Set motion sensitivity")
+    motion_sens.add_argument("value", type=int, help="Sensitivity value (0-100)")
+    motion_sens.set_defaults(func=_cmd_motion_sensitivity)
+
     # ai command group — default to status
     ai_parser = subparsers.add_parser("ai", help="AI detection")
     ai_parser.set_defaults(func=_cmd_ai_status)
     ai_sub = ai_parser.add_subparsers(dest="ai_command")
     ai_status = ai_sub.add_parser("status", help="Show AI detection status")
     ai_status.set_defaults(func=_cmd_ai_status)
+
+    # ai enable/disable
+    ai_enable = ai_sub.add_parser("enable", help="Enable AI detection type")
+    ai_enable.add_argument(
+        "type", choices=["people", "vehicle", "dog_cat", "face"],
+        help="Detection type",
+    )
+    ai_enable.set_defaults(func=_cmd_ai_enable, action="enable")
+    ai_disable = ai_sub.add_parser("disable", help="Disable AI detection type")
+    ai_disable.add_argument(
+        "type", choices=["people", "vehicle", "dog_cat", "face"],
+        help="Detection type",
+    )
+    ai_disable.set_defaults(func=_cmd_ai_enable, action="disable")
