@@ -238,3 +238,171 @@ class ReolinkClient:
         """
         value = self.execute("GetDevInfo")
         return value.get("DevInfo", value)
+
+    def get_battery_info(self) -> dict:
+        """Get battery status.
+
+        Returns:
+            Dict with battery percentage, charging state, temperature, etc.
+        """
+        value = self.execute("GetBatteryInfo")
+        return value.get("BatteryInfo", value)
+
+    def get_hdd_info(self) -> list[dict]:
+        """Get storage/HDD information.
+
+        Returns:
+            List of dicts, one per storage device (SD card, HDD).
+        """
+        value = self.execute("GetHddInfo")
+        return value.get("HddInfo", [])
+
+    def get_local_link(self) -> dict:
+        """Get local network link information.
+
+        Returns:
+            Dict with IP, MAC, link type, DNS settings.
+        """
+        value = self.execute("GetLocalLink")
+        return value.get("LocalLink", value)
+
+    def get_net_port(self) -> dict:
+        """Get network port configuration.
+
+        Returns:
+            Dict with HTTP, HTTPS, RTSP, RTMP, ONVIF port numbers.
+        """
+        value = self.execute("GetNetPort")
+        return value.get("NetPort", value)
+
+    def get_wifi_signal(self) -> int | None:
+        """Get WiFi signal strength.
+
+        Returns:
+            Signal strength value (dBm), or None if unavailable.
+        """
+        value = self.execute("GetWifiSignal")
+        return value.get("wifiSignal")
+
+    def get_time(self) -> dict:
+        """Get system time and timezone settings.
+
+        Returns:
+            Dict with Time and Dst (daylight saving) sub-dicts.
+        """
+        return self.execute("GetTime")
+
+    def get_ability(self) -> dict:
+        """Get camera capabilities.
+
+        Returns:
+            Dict describing all supported features and their parameters.
+        """
+        value = self.execute("GetAbility", param={"User": {"userName": self.username}})
+        return value.get("Ability", value)
+
+    def get_md_alarm(self) -> dict:
+        """Get motion detection alarm configuration.
+
+        Returns:
+            Dict with enable state, sensitivity, and schedule.
+        """
+        value = self.execute("GetMdAlarm", param={"channel": self.channel})
+        return value.get("MdAlarm", value)
+
+    def get_md_state(self) -> dict:
+        """Get current motion detection state.
+
+        Returns:
+            Dict with current motion trigger state.
+        """
+        return self.execute("GetMdState", param={"channel": self.channel})
+
+    def get_ai_state(self) -> dict:
+        """Get current AI detection state.
+
+        Returns:
+            Dict with per-type detection states (person, vehicle, animal, etc.).
+        """
+        return self.execute("GetAiState", param={"channel": self.channel})
+
+    def get_ai_cfg(self) -> dict:
+        """Get AI detection configuration.
+
+        Returns:
+            Dict with enabled detection types and their settings.
+        """
+        value = self.execute("GetAiCfg", param={"channel": self.channel})
+        return value.get("AiDetectType", value)
+
+    def get_ir_lights(self) -> dict:
+        """Get infrared lights status.
+
+        Returns:
+            Dict with IR light state and mode.
+        """
+        value = self.execute("GetIrLights", param={"channel": self.channel})
+        return value.get("IrLights", value)
+
+    def get_white_led(self) -> dict:
+        """Get white LED (spotlight) status.
+
+        Returns:
+            Dict with spotlight state, mode, and brightness.
+        """
+        value = self.execute("GetWhiteLed", param={"channel": self.channel})
+        return value.get("WhiteLed", value)
+
+    def get_power_led(self) -> dict:
+        """Get power/status LED state.
+
+        Returns:
+            Dict with LED on/off state.
+        """
+        value = self.execute("GetPowerLed", param={"channel": self.channel})
+        return value.get("PowerLed", value)
+
+    def get_image(self) -> dict:
+        """Get image settings (brightness, contrast, etc.).
+
+        Returns:
+            Dict with image adjustment parameters.
+        """
+        value = self.execute("GetImage", param={"channel": self.channel})
+        return value.get("Image", value)
+
+    def get_isp(self) -> dict:
+        """Get ISP settings (day/night mode, exposure, etc.).
+
+        Returns:
+            Dict with ISP configuration parameters.
+        """
+        value = self.execute("GetIsp", param={"channel": self.channel})
+        return value.get("Isp", value)
+
+    def get_enc(self) -> dict:
+        """Get encoding configuration.
+
+        Returns:
+            Dict with main/sub stream encoding settings.
+        """
+        value = self.execute("GetEnc", param={"channel": self.channel})
+        return value.get("Enc", value)
+
+    def get_audio_cfg(self) -> dict:
+        """Get audio configuration.
+
+        Returns:
+            Dict with mic volume, speaker volume, recording enable state.
+        """
+        value = self.execute("GetAudioCfg", param={"channel": self.channel})
+        return value.get("AudioCfg", value)
+
+    def get_audio_alarm(self) -> dict:
+        """Get audio alarm configuration.
+
+        Returns:
+            Dict with audio alarm enable state and settings.
+        """
+        value = self.execute("GetAudioAlarm", param={"channel": self.channel})
+        return value.get("AudioAlarm", value)

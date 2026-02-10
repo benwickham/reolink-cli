@@ -17,7 +17,7 @@ from reolink_cli.client import (
     ReolinkClient,
     ReolinkError,
 )
-from reolink_cli.commands import device
+from reolink_cli.commands import controls, detection, device
 from reolink_cli.output import print_error
 
 
@@ -65,6 +65,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
     device.register(subparsers)
+    detection.register(subparsers)
+    controls.register(subparsers)
 
     return parser
 
