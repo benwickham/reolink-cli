@@ -63,11 +63,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Suppress informational output",
     )
 
-    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
+    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND",
+                                       title="commands")
     device.register(subparsers)
+    media.register(subparsers)
     detection.register(subparsers)
     controls.register(subparsers)
-    media.register(subparsers)
     alerts.register(subparsers)
     system.register(subparsers)
 

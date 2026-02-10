@@ -227,6 +227,20 @@ def _cmd_time(args: argparse.Namespace, client: ReolinkClient) -> None:
     output(display, title="System Time")
 
 
+def _cmd_ping(args: argparse.Namespace, client: ReolinkClient) -> None:
+    """Check if camera is reachable and credentials work."""
+    info = client.get_device_info()
+    name = info.get("name", "Unknown")
+    model = info.get("model", "Unknown")
+    firmware = info.get("firmVer", "Unknown")
+
+    if args.json:
+        output({"reachable": True, "name": name, "model": model, "firmware": firmware},
+               json_mode=True)
+    else:
+        print(f"OK — {name} ({model}, {firmware})")
+
+
 def _cmd_capabilities(args: argparse.Namespace, client: ReolinkClient) -> None:
     """Show camera capabilities."""
     raw = client.get_ability()
@@ -240,6 +254,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     Args:
         subparsers: The subparsers action from the parent parser.
     """
+    ping_parser = subparsers.add_parser("ping", help="Check camera connectivity")
+    ping_parser.set_defaults(func=_cmd_ping)
+
     info_parser = subparsers.add_parser("info", help="Show device information")
     info_parser.set_defaults(func=_cmd_info)
 

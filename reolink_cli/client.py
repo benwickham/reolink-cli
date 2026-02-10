@@ -116,9 +116,15 @@ class ReolinkClient:
             resp.raise_for_status()
             return resp.json()
         except requests.ConnectionError:
-            raise NetworkError(f"Cannot connect to camera at {self.host}")
+            raise NetworkError(
+                f"Cannot connect to camera at {self.host}"
+                " — check the IP and ensure you're on the same network"
+            )
         except requests.Timeout:
-            raise NetworkError(f"Connection to {self.host} timed out after {self.timeout}s")
+            raise NetworkError(
+                f"Connection to {self.host} timed out after {self.timeout}s"
+                " — camera may be asleep or unreachable"
+            )
         except requests.HTTPError as exc:
             raise NetworkError(f"HTTP error from {self.host}: {exc}")
         except requests.JSONDecodeError:
@@ -439,9 +445,15 @@ class ReolinkClient:
                 raise ApiError("Snapshot response is not an image")
             return resp.content
         except requests.ConnectionError:
-            raise NetworkError(f"Cannot connect to camera at {self.host}")
+            raise NetworkError(
+                f"Cannot connect to camera at {self.host}"
+                " — check the IP and ensure you're on the same network"
+            )
         except requests.Timeout:
-            raise NetworkError(f"Connection to {self.host} timed out after {self.timeout}s")
+            raise NetworkError(
+                f"Connection to {self.host} timed out after {self.timeout}s"
+                " — camera may be asleep or unreachable"
+            )
         except requests.HTTPError as exc:
             raise NetworkError(f"HTTP error from {self.host}: {exc}")
 
@@ -514,9 +526,15 @@ class ReolinkClient:
             resp.raise_for_status()
             return resp
         except requests.ConnectionError:
-            raise NetworkError(f"Cannot connect to camera at {self.host}")
+            raise NetworkError(
+                f"Cannot connect to camera at {self.host}"
+                " — check the IP and ensure you're on the same network"
+            )
         except requests.Timeout:
-            raise NetworkError(f"Connection to {self.host} timed out after {self.timeout}s")
+            raise NetworkError(
+                f"Connection to {self.host} timed out after {self.timeout}s"
+                " — camera may be asleep or unreachable"
+            )
         except requests.HTTPError as exc:
             raise NetworkError(f"HTTP error from {self.host}: {exc}")
 

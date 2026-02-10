@@ -158,6 +158,44 @@ class TestInfoCommand:
 
 
 # ---------------------------------------------------------------------------
+# Ping command
+# ---------------------------------------------------------------------------
+
+class TestPingCommand:
+    """Tests for the 'ping' command."""
+
+    def test_ping_human(self, capsys):
+        from reolink_cli.commands.device import _cmd_ping
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_device_info.return_value = SAMPLE_DEVICE_INFO
+
+        _cmd_ping(args, client)
+
+        captured = capsys.readouterr()
+        assert "OK" in captured.out
+        assert "Front Door" in captured.out
+        assert "Argus 4 Pro" in captured.out
+
+    @patch("reolink_cli.commands.device.output")
+    def test_ping_json(self, mock_output):
+        from reolink_cli.commands.device import _cmd_ping
+
+        args = Namespace(json=True)
+        client = MagicMock()
+        client.get_device_info.return_value = SAMPLE_DEVICE_INFO
+
+        _cmd_ping(args, client)
+
+        mock_output.assert_called_once()
+        data = mock_output.call_args[0][0]
+        assert data["reachable"] is True
+        assert data["name"] == "Front Door"
+        assert data["model"] == "Argus 4 Pro"
+
+
+# ---------------------------------------------------------------------------
 # Battery command
 # ---------------------------------------------------------------------------
 
