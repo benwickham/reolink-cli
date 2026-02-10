@@ -17,7 +17,7 @@ from reolink_cli.client import (
     ReolinkClient,
     ReolinkError,
 )
-from reolink_cli.commands import alerts, controls, detection, device, media
+from reolink_cli.commands import alerts, controls, detection, device, media, system
 from reolink_cli.output import print_error
 
 
@@ -69,6 +69,7 @@ def _build_parser() -> argparse.ArgumentParser:
     controls.register(subparsers)
     media.register(subparsers)
     alerts.register(subparsers)
+    system.register(subparsers)
 
     return parser
 

@@ -252,7 +252,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     network_parser = subparsers.add_parser("network", help="Show network information")
     network_parser.set_defaults(func=_cmd_network)
 
-    time_parser = subparsers.add_parser("time", help="Show system time")
+    time_parser = subparsers.add_parser("time", help="System time")
     time_parser.set_defaults(func=_cmd_time)
 
     capabilities_parser = subparsers.add_parser(
