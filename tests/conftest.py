@@ -390,6 +390,149 @@ AUDIO_ALARM_RESPONSE = [
     }
 ]
 
+REC_RESPONSE = [
+    {
+        "cmd": "GetRec",
+        "code": 0,
+        "value": {
+            "Rec": {
+                "channel": 0,
+                "enable": 1,
+                "overwrite": 1,
+                "packDuration": 600,
+                "preRec": 1,
+                "postRec": 10,
+                "schedule": {"enable": 1},
+            }
+        },
+    }
+]
+
+SEARCH_RESPONSE = [
+    {
+        "cmd": "Search",
+        "code": 0,
+        "value": {
+            "SearchResult": {
+                "Status": {"mon": 2, "table": "111"},
+                "File": [
+                    {
+                        "name": "/mnt/sd/20260210/rec/001.mp4",
+                        "StartTime": {
+                            "year": 2026, "mon": 2, "day": 10,
+                            "hour": 8, "min": 30, "sec": 0,
+                        },
+                        "EndTime": {
+                            "year": 2026, "mon": 2, "day": 10,
+                            "hour": 8, "min": 35, "sec": 0,
+                        },
+                        "size": 10485760,
+                        "type": "alarm",
+                    },
+                    {
+                        "name": "/mnt/sd/20260210/rec/002.mp4",
+                        "StartTime": {
+                            "year": 2026, "mon": 2, "day": 10,
+                            "hour": 10, "min": 0, "sec": 0,
+                        },
+                        "EndTime": {
+                            "year": 2026, "mon": 2, "day": 10,
+                            "hour": 10, "min": 10, "sec": 0,
+                        },
+                        "size": 20971520,
+                        "type": "schedule",
+                    },
+                ],
+            }
+        },
+    }
+]
+
+SET_SUCCESS_RESPONSE = [
+    {
+        "cmd": "SetMdAlarm",
+        "code": 0,
+        "value": {"rspCode": 200},
+    }
+]
+
+PUSH_RESPONSE = [
+    {
+        "cmd": "GetPush",
+        "code": 0,
+        "value": {
+            "Push": {"channel": 0, "enable": 1}
+        },
+    }
+]
+
+FTP_RESPONSE = [
+    {
+        "cmd": "GetFtp",
+        "code": 0,
+        "value": {
+            "Ftp": {"channel": 0, "enable": 0, "server": "ftp.example.com"}
+        },
+    }
+]
+
+EMAIL_RESPONSE = [
+    {
+        "cmd": "GetEmail",
+        "code": 0,
+        "value": {
+            "Email": {"channel": 0, "enable": 0, "addr1": "test@example.com"}
+        },
+    }
+]
+
+NTP_RESPONSE = [
+    {
+        "cmd": "GetNtp",
+        "code": 0,
+        "value": {
+            "Ntp": {"enable": 1, "server": "pool.ntp.org", "port": 123, "interval": 1440}
+        },
+    }
+]
+
+USER_RESPONSE = [
+    {
+        "cmd": "GetUser",
+        "code": 0,
+        "value": {
+            "User": [
+                {"userName": "admin", "level": "admin"},
+                {"userName": "viewer", "level": "guest"},
+            ]
+        },
+    }
+]
+
+ONLINE_RESPONSE = [
+    {
+        "cmd": "GetOnline",
+        "code": 0,
+        "value": {
+            "Online": [
+                {"userName": "admin", "ip": "192.168.1.50"},
+            ]
+        },
+    }
+]
+
+CHECK_FIRMWARE_RESPONSE = [
+    {
+        "cmd": "CheckFirmware",
+        "code": 0,
+        "value": {
+            "firmVer": "v3.1.0.2347",
+            "newFirmVer": "v3.2.0.100",
+            "needUpgrade": 1,
+        },
+    }
+]
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

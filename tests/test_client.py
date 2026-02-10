@@ -22,8 +22,11 @@ from tests.conftest import (
     AUDIO_ALARM_RESPONSE,
     AUDIO_CFG_RESPONSE,
     BATTERY_INFO_RESPONSE,
+    CHECK_FIRMWARE_RESPONSE,
     DEVICE_INFO_RESPONSE,
+    EMAIL_RESPONSE,
     ENC_RESPONSE,
+    FTP_RESPONSE,
     HDD_INFO_RESPONSE,
     IMAGE_RESPONSE,
     IR_LIGHTS_RESPONSE,
@@ -34,9 +37,16 @@ from tests.conftest import (
     MD_ALARM_RESPONSE,
     MD_STATE_RESPONSE,
     NET_PORT_RESPONSE,
+    NTP_RESPONSE,
+    ONLINE_RESPONSE,
     POWER_LED_RESPONSE,
+    PUSH_RESPONSE,
+    REC_RESPONSE,
+    SEARCH_RESPONSE,
+    SET_SUCCESS_RESPONSE,
     TIME_RESPONSE,
     UNSUPPORTED_RESPONSE,
+    USER_RESPONSE,
     WHITE_LED_RESPONSE,
     WIFI_SIGNAL_RESPONSE,
 )
@@ -354,3 +364,232 @@ class TestClientInit:
         assert c.username == "user2"
         assert c.channel == 1
         assert c.timeout == 30
+
+
+class TestSnap:
+    """Tests for snapshot capture."""
+
+    @patch("reolink_cli.client.requests.get")
+    def test_snap(self, mock_get, logged_in_client):
+        mock_resp = MagicMock()
+        mock_resp.headers = {"content-type": "image/jpeg"}
+        mock_resp.content = b"\xff\xd8\xff\xe0" + b"\x00" * 100
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        data = logged_in_client.snap()
+        assert data.startswith(b"\xff\xd8")
+        mock_get.assert_called_once()
+
+    @patch("reolink_cli.client.requests.get")
+    def test_snap_network_error(self, mock_get, logged_in_client):
+        mock_get.side_effect = requests.ConnectionError("refused")
+
+        with pytest.raises(NetworkError, match="Cannot connect"):
+            logged_in_client.snap()
+
+
+class TestGetRec:
+    """Tests for recording config retrieval."""
+
+    def test_get_rec(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = REC_RESPONSE
+        mock_post.return_value = mock_response
+
+        info = logged_in_client.get_rec()
+        assert info["enable"] == 1
+        assert info["overwrite"] == 1
+        assert info["packDuration"] == 600
+
+
+class TestSearchRecordings:
+    """Tests for recording search."""
+
+    def test_search_recordings(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SEARCH_RESPONSE
+        mock_post.return_value = mock_response
+
+        files = logged_in_client.search_recordings(
+            start_time={"year": 2026, "mon": 2, "day": 10, "hour": 0, "min": 0, "sec": 0},
+            end_time={"year": 2026, "mon": 2, "day": 10, "hour": 23, "min": 59, "sec": 59},
+        )
+        assert len(files) == 2
+        assert files[0]["name"] == "/mnt/sd/20260210/rec/001.mp4"
+        assert files[1]["type"] == "schedule"
+
+
+class TestSetters:
+    """Tests for setter methods."""
+
+    def test_set_md_alarm(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [MD_ALARM_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_md_alarm(enable=False)
+        assert mock_post.call_count >= 2
+
+    def test_set_ir_lights(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_ir_lights("Off")
+
+    def test_set_white_led(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [WHITE_LED_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_white_led(state=0)
+
+    def test_set_power_led(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_power_led(0)
+
+    def test_set_image(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [IMAGE_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_image(bright=200)
+
+    def test_set_isp(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [ISP_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_isp(rotation=180)
+
+    def test_set_enc(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [ENC_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_enc(stream="main", bitRate=2048)
+
+    def test_set_audio_cfg(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [AUDIO_CFG_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_audio_cfg(micVolume=50)
+
+    def test_set_ai_cfg(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [AI_CFG_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_ai_cfg(people=0)
+
+
+class TestAlertMethods:
+    """Tests for alert and notification methods."""
+
+    def test_set_audio_alarm(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_audio_alarm(enable=True)
+
+    def test_audio_alarm_play(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.audio_alarm_play(manual_switch=1)
+
+    def test_get_push(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = PUSH_RESPONSE
+        mock_post.return_value = mock_response
+
+        info = logged_in_client.get_push()
+        assert info["enable"] == 1
+
+    def test_set_push(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_push(enable=False)
+
+    def test_get_ftp(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = FTP_RESPONSE
+        mock_post.return_value = mock_response
+
+        info = logged_in_client.get_ftp()
+        assert info["server"] == "ftp.example.com"
+
+    def test_set_ftp(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [FTP_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_ftp(enable=True)
+
+    def test_get_email(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = EMAIL_RESPONSE
+        mock_post.return_value = mock_response
+
+        info = logged_in_client.get_email()
+        assert info["addr1"] == "test@example.com"
+
+    def test_set_email(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [EMAIL_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_email(enable=True)
+
+    def test_set_rec(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [REC_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_rec(enable=False)
+
+
+class TestSystemAdmin:
+    """Tests for system admin methods."""
+
+    def test_reboot(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.reboot()
+
+    def test_check_firmware(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = CHECK_FIRMWARE_RESPONSE
+        mock_post.return_value = mock_response
+
+        info = logged_in_client.check_firmware()
+        assert info["needUpgrade"] == 1
+
+    def test_get_ntp(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = NTP_RESPONSE
+        mock_post.return_value = mock_response
+
+        info = logged_in_client.get_ntp()
+        assert info["server"] == "pool.ntp.org"
+
+    def test_set_ntp(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.side_effect = [NTP_RESPONSE, SET_SUCCESS_RESPONSE]
+        mock_post.return_value = mock_response
+
+        logged_in_client.set_ntp(server="time.google.com")
+
+    def test_get_user(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = USER_RESPONSE
+        mock_post.return_value = mock_response
+
+        users = logged_in_client.get_user()
+        assert len(users) == 2
+        assert users[0]["userName"] == "admin"
+
+    def test_get_online(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = ONLINE_RESPONSE
+        mock_post.return_value = mock_response
+
+        sessions = logged_in_client.get_online()
+        assert len(sessions) == 1
+
+    def test_add_user(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.add_user("newuser", "pass123", level="guest")
+
+    def test_delete_user(self, logged_in_client, mock_post, mock_response):
+        mock_response.json.return_value = SET_SUCCESS_RESPONSE
+        mock_post.return_value = mock_response
+
+        logged_in_client.delete_user("olduser")

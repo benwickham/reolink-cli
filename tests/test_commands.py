@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from argparse import Namespace
 from unittest.mock import MagicMock, patch
 
@@ -820,3 +821,638 @@ class TestCLIEnvVars:
             channel=0,
             timeout=10,
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Media commands
+# ---------------------------------------------------------------------------
+
+SAMPLE_REC_CONFIG = {
+    "channel": 0, "enable": 1, "overwrite": 1,
+    "packDuration": 600, "preRec": 1, "postRec": 10,
+    "schedule": {"enable": 1},
+}
+
+SAMPLE_RECORDINGS = [
+    {
+        "name": "/mnt/sd/20260210/rec/001.mp4",
+        "StartTime": {"year": 2026, "mon": 2, "day": 10, "hour": 8, "min": 30, "sec": 0},
+        "EndTime": {"year": 2026, "mon": 2, "day": 10, "hour": 8, "min": 35, "sec": 0},
+        "size": 10485760,
+        "type": "alarm",
+    },
+]
+
+SAMPLE_NET_PORT = {
+    "httpPort": 80, "httpsPort": 443, "rtspPort": 554,
+    "rtmpPort": 1935, "onvifPort": 8000, "mediaPort": 9000,
+}
+
+
+class TestSnapCommand:
+    """Tests for the 'snap' command."""
+
+    def test_snap_saves_file(self, tmp_path):
+        from reolink_cli.commands.media import _cmd_snap
+
+        out_file = str(tmp_path / "test.jpg")
+        args = Namespace(json=False, stream="main", out=out_file, quiet=False)
+        client = MagicMock()
+        client.snap.return_value = b"\xff\xd8\xff\xe0" + b"\x00" * 50
+
+        _cmd_snap(args, client)
+
+        assert os.path.exists(out_file)
+        with open(out_file, "rb") as f:
+            assert f.read().startswith(b"\xff\xd8")
+
+    def test_snap_json(self, tmp_path, capsys):
+        from reolink_cli.commands.media import _cmd_snap
+
+        out_file = str(tmp_path / "test.jpg")
+        args = Namespace(json=True, stream="main", out=out_file, quiet=False)
+        client = MagicMock()
+        client.snap.return_value = b"\xff\xd8\xff\xe0" + b"\x00" * 50
+
+        _cmd_snap(args, client)
+
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["file"] == out_file
+        assert data["size"] == 54
+
+
+class TestStreamCommand:
+    """Tests for the 'stream' command."""
+
+    def test_stream_rtsp(self, capsys):
+        from reolink_cli.commands.media import _cmd_stream
+
+        args = Namespace(json=False, format="rtsp", stream="main", open=False)
+        client = MagicMock()
+        client.get_net_port.return_value = SAMPLE_NET_PORT
+        client.username = "admin"
+        client.password = "pass"
+        client.host = "192.168.1.100"
+        client.channel = 0
+
+        _cmd_stream(args, client)
+
+        captured = capsys.readouterr()
+        assert "rtsp://" in captured.out
+        assert "192.168.1.100" in captured.out
+
+    def test_stream_rtmp(self, capsys):
+        from reolink_cli.commands.media import _cmd_stream
+
+        args = Namespace(json=False, format="rtmp", stream="main", open=False)
+        client = MagicMock()
+        client.get_net_port.return_value = SAMPLE_NET_PORT
+        client.username = "admin"
+        client.password = "pass"
+        client.host = "192.168.1.100"
+        client.channel = 0
+
+        _cmd_stream(args, client)
+
+        captured = capsys.readouterr()
+        assert "rtmp://" in captured.out
+
+    def test_stream_json(self, capsys):
+        from reolink_cli.commands.media import _cmd_stream
+
+        args = Namespace(json=True, format="rtsp", stream="main", open=False)
+        client = MagicMock()
+        client.get_net_port.return_value = SAMPLE_NET_PORT
+        client.username = "admin"
+        client.password = "pass"
+        client.host = "192.168.1.100"
+        client.channel = 0
+
+        _cmd_stream(args, client)
+
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["format"] == "rtsp"
+        assert "url" in data
+
+
+class TestRecordingsListCommand:
+    """Tests for the 'recordings list' command."""
+
+    def test_recordings_list_human(self, capsys):
+        from reolink_cli.commands.media import _cmd_recordings_list
+
+        args = Namespace(json=False, from_date="today", to_date=None, quiet=False)
+        client = MagicMock()
+        client.search_recordings.return_value = SAMPLE_RECORDINGS
+
+        _cmd_recordings_list(args, client)
+
+        captured = capsys.readouterr()
+        assert "1 recording(s)" in captured.out
+        assert "001.mp4" in captured.out
+
+    def test_recordings_list_json(self, capsys):
+        from reolink_cli.commands.media import _cmd_recordings_list
+
+        args = Namespace(json=True, from_date="today", to_date=None, quiet=False)
+        client = MagicMock()
+        client.search_recordings.return_value = SAMPLE_RECORDINGS
+
+        _cmd_recordings_list(args, client)
+
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["count"] == 1
+
+    def test_recordings_list_empty(self, capsys):
+        from reolink_cli.commands.media import _cmd_recordings_list
+
+        args = Namespace(json=False, from_date="today", to_date=None, quiet=False)
+        client = MagicMock()
+        client.search_recordings.return_value = []
+
+        _cmd_recordings_list(args, client)
+
+        captured = capsys.readouterr()
+        assert "No recordings found" in captured.out
+
+
+class TestRecordingsStatusCommand:
+    """Tests for the 'recordings status' command."""
+
+    @patch("reolink_cli.commands.media.output")
+    def test_recordings_status_human(self, mock_output):
+        from reolink_cli.commands.media import _cmd_recordings_status
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_rec.return_value = SAMPLE_REC_CONFIG
+
+        _cmd_recordings_status(args, client)
+
+        data = mock_output.call_args[0][0]
+        assert data["Recording"] == "Enabled"
+        assert data["Overwrite"] == "Enabled"
+
+    @patch("reolink_cli.commands.media.output")
+    def test_recordings_status_json(self, mock_output):
+        from reolink_cli.commands.media import _cmd_recordings_status
+
+        args = Namespace(json=True)
+        client = MagicMock()
+        client.get_rec.return_value = SAMPLE_REC_CONFIG
+
+        _cmd_recordings_status(args, client)
+
+        mock_output.assert_called_once_with(SAMPLE_REC_CONFIG, json_mode=True)
+
+
+class TestRecordingsDownloadCommand:
+    """Tests for the 'recordings download' command."""
+
+    def test_download(self, tmp_path, capsys):
+        from reolink_cli.commands.media import _cmd_recordings_download
+
+        out_file = str(tmp_path / "test.mp4")
+        args = Namespace(
+            json=False, quiet=False, filename="/mnt/sd/rec/001.mp4", out=out_file,
+        )
+        client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.iter_content.return_value = [b"\x00" * 1024]
+        client.download_file.return_value = mock_resp
+
+        _cmd_recordings_download(args, client)
+
+        assert os.path.exists(out_file)
+        mock_resp.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Setter commands
+# ---------------------------------------------------------------------------
+
+class TestMotionSetterCommands:
+    """Tests for motion detection setter commands."""
+
+    @patch("reolink_cli.commands.detection.output")
+    def test_motion_enable(self, mock_output):
+        from reolink_cli.commands.detection import _cmd_motion_enable
+
+        args = Namespace(json=False, action="enable")
+        client = MagicMock()
+        client.set_md_alarm.return_value = {}
+
+        _cmd_motion_enable(args, client)
+
+        client.set_md_alarm.assert_called_once_with(enable=True)
+
+    @patch("reolink_cli.commands.detection.output")
+    def test_motion_disable(self, mock_output):
+        from reolink_cli.commands.detection import _cmd_motion_enable
+
+        args = Namespace(json=False, action="disable")
+        client = MagicMock()
+        client.set_md_alarm.return_value = {}
+
+        _cmd_motion_enable(args, client)
+
+        client.set_md_alarm.assert_called_once_with(enable=False)
+
+    @patch("reolink_cli.commands.detection.output")
+    def test_motion_sensitivity(self, mock_output):
+        from reolink_cli.commands.detection import _cmd_motion_sensitivity
+
+        args = Namespace(json=False, value=75)
+        client = MagicMock()
+        client.set_md_alarm.return_value = {}
+
+        _cmd_motion_sensitivity(args, client)
+
+        client.set_md_alarm.assert_called_once_with(sensitivity=75)
+
+
+class TestAiSetterCommands:
+    """Tests for AI detection setter commands."""
+
+    @patch("reolink_cli.commands.detection.output")
+    def test_ai_enable(self, mock_output):
+        from reolink_cli.commands.detection import _cmd_ai_enable
+
+        args = Namespace(json=False, action="enable", type="people")
+        client = MagicMock()
+        client.set_ai_cfg.return_value = {}
+
+        _cmd_ai_enable(args, client)
+
+        client.set_ai_cfg.assert_called_once_with(people=1)
+
+    @patch("reolink_cli.commands.detection.output")
+    def test_ai_disable(self, mock_output):
+        from reolink_cli.commands.detection import _cmd_ai_enable
+
+        args = Namespace(json=False, action="disable", type="vehicle")
+        client = MagicMock()
+        client.set_ai_cfg.return_value = {}
+
+        _cmd_ai_enable(args, client)
+
+        client.set_ai_cfg.assert_called_once_with(vehicle=0)
+
+
+class TestIrSetterCommands:
+    """Tests for IR light setter commands."""
+
+    def test_ir_set(self, capsys):
+        from reolink_cli.commands.controls import _cmd_ir_set
+
+        args = Namespace(json=False, state="Off")
+        client = MagicMock()
+        client.set_ir_lights.return_value = {}
+
+        _cmd_ir_set(args, client)
+
+        client.set_ir_lights.assert_called_once_with("Off")
+
+
+class TestSpotlightSetterCommands:
+    """Tests for spotlight setter commands."""
+
+    def test_spotlight_on(self, capsys):
+        from reolink_cli.commands.controls import _cmd_spotlight_set
+
+        args = Namespace(json=False, state="on", brightness=None, mode=None)
+        client = MagicMock()
+        client.set_white_led.return_value = {}
+
+        _cmd_spotlight_set(args, client)
+
+        client.set_white_led.assert_called_once_with(state=1)
+
+
+class TestStatusLedSetterCommands:
+    """Tests for status LED setter commands."""
+
+    def test_status_led_set(self, capsys):
+        from reolink_cli.commands.controls import _cmd_status_led_set
+
+        args = Namespace(json=False, state="off")
+        client = MagicMock()
+        client.set_power_led.return_value = {}
+
+        _cmd_status_led_set(args, client)
+
+        client.set_power_led.assert_called_once_with(0)
+
+
+class TestImageSetterCommands:
+    """Tests for image setter commands."""
+
+    def test_image_set(self, capsys):
+        from reolink_cli.commands.controls import _cmd_image_set
+
+        args = Namespace(
+            json=False, brightness=100, contrast=None, saturation=None,
+            sharpness=None, flip=None, mirror=None,
+        )
+        client = MagicMock()
+        client.set_image.return_value = {}
+        client.set_isp.return_value = {}
+
+        _cmd_image_set(args, client)
+
+        client.set_image.assert_called_once_with(bright=100)
+
+
+class TestEncodingSetterCommands:
+    """Tests for encoding setter commands."""
+
+    def test_encoding_set(self, capsys):
+        from reolink_cli.commands.controls import _cmd_encoding_set
+
+        args = Namespace(json=False, stream="main", bitrate=2048, framerate=None, resolution=None)
+        client = MagicMock()
+        client.set_enc.return_value = {}
+
+        _cmd_encoding_set(args, client)
+
+        client.set_enc.assert_called_once_with(stream="main", bitRate=2048)
+
+
+class TestAudioSetterCommands:
+    """Tests for audio setter commands."""
+
+    def test_audio_set_mic(self, capsys):
+        from reolink_cli.commands.controls import _cmd_audio_set
+
+        args = Namespace(json=False, mic_volume=50, speaker_volume=None, recording=None)
+        client = MagicMock()
+        client.set_audio_cfg.return_value = {}
+
+        _cmd_audio_set(args, client)
+
+        client.set_audio_cfg.assert_called_once_with(micVolume=50)
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Alert commands
+# ---------------------------------------------------------------------------
+
+class TestSirenCommands:
+    """Tests for siren commands."""
+
+    def test_siren_trigger(self, capsys):
+        from reolink_cli.commands.alerts import _cmd_siren_trigger
+
+        args = Namespace(json=False, duration=0)
+        client = MagicMock()
+        client.audio_alarm_play.return_value = {}
+
+        _cmd_siren_trigger(args, client)
+
+        client.audio_alarm_play.assert_called_once_with(manual_switch=1)
+
+    def test_siren_stop(self, capsys):
+        from reolink_cli.commands.alerts import _cmd_siren_stop
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.audio_alarm_play.return_value = {}
+
+        _cmd_siren_stop(args, client)
+
+        client.audio_alarm_play.assert_called_once_with(manual_switch=0)
+
+
+class TestPushCommands:
+    """Tests for push notification commands."""
+
+    @patch("reolink_cli.commands.alerts.output")
+    def test_push_status(self, mock_output):
+        from reolink_cli.commands.alerts import _cmd_push_status
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_push.return_value = {"channel": 0, "enable": 1}
+
+        _cmd_push_status(args, client)
+
+        data = mock_output.call_args[0][0]
+        assert data["Push Notifications"] == "Enabled"
+
+    def test_push_enable(self, capsys):
+        from reolink_cli.commands.alerts import _cmd_push_set
+
+        args = Namespace(json=False, action="enable")
+        client = MagicMock()
+        client.set_push.return_value = {}
+
+        _cmd_push_set(args, client)
+
+        client.set_push.assert_called_once_with(enable=True)
+
+
+class TestFtpCommands:
+    """Tests for FTP commands."""
+
+    @patch("reolink_cli.commands.alerts.output")
+    def test_ftp_status(self, mock_output):
+        from reolink_cli.commands.alerts import _cmd_ftp_status
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_ftp.return_value = {"channel": 0, "enable": 0, "server": "ftp.example.com"}
+
+        _cmd_ftp_status(args, client)
+
+        data = mock_output.call_args[0][0]
+        assert data["FTP Upload"] == "Disabled"
+
+
+class TestEmailCommands:
+    """Tests for email commands."""
+
+    @patch("reolink_cli.commands.alerts.output")
+    def test_email_status(self, mock_output):
+        from reolink_cli.commands.alerts import _cmd_email_status
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_email.return_value = {
+            "channel": 0, "enable": 1, "addr1": "test@example.com",
+        }
+
+        _cmd_email_status(args, client)
+
+        data = mock_output.call_args[0][0]
+        assert data["Email Alerts"] == "Enabled"
+
+
+class TestRecordingToggleCommand:
+    """Tests for recording enable/disable commands."""
+
+    def test_recording_enable(self, capsys):
+        from reolink_cli.commands.alerts import _cmd_recording_set
+
+        args = Namespace(json=False, action="enable")
+        client = MagicMock()
+        client.set_rec.return_value = {}
+
+        _cmd_recording_set(args, client)
+
+        client.set_rec.assert_called_once_with(enable=True)
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: System admin commands
+# ---------------------------------------------------------------------------
+
+class TestRebootCommand:
+    """Tests for the reboot command."""
+
+    def test_reboot_with_force(self, capsys):
+        from reolink_cli.commands.system import _cmd_reboot
+
+        args = Namespace(json=False, force=True)
+        client = MagicMock()
+        client.reboot.return_value = {}
+
+        _cmd_reboot(args, client)
+
+        client.reboot.assert_called_once()
+
+    def test_reboot_without_force(self, capsys):
+        from reolink_cli.commands.system import _cmd_reboot
+
+        args = Namespace(json=False, force=False)
+        client = MagicMock()
+
+        with pytest.raises(SystemExit) as exc_info:
+            _cmd_reboot(args, client)
+        assert exc_info.value.code == 2
+        client.reboot.assert_not_called()
+
+
+class TestFirmwareCommand:
+    """Tests for firmware commands."""
+
+    @patch("reolink_cli.commands.system.output")
+    def test_firmware_info(self, mock_output):
+        from reolink_cli.commands.system import _cmd_firmware_info
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_firmware_info.return_value = {
+            "model": "Argus 4 Pro",
+            "firmVer": "v3.1.0.2347",
+        }
+
+        _cmd_firmware_info(args, client)
+
+        data = mock_output.call_args[0][0]
+        assert "Firmware" in data
+
+    @patch("reolink_cli.commands.system.output")
+    def test_firmware_check(self, mock_output):
+        from reolink_cli.commands.system import _cmd_firmware_check
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.check_firmware.return_value = {
+            "firmVer": "v3.1.0.2347",
+            "newFirmVer": "v3.2.0.100",
+            "needUpgrade": 1,
+        }
+
+        _cmd_firmware_check(args, client)
+
+        data = mock_output.call_args[0][0]
+        assert data["Update Available"] == "Yes"
+
+
+class TestUserCommands:
+    """Tests for user management commands."""
+
+    @patch("reolink_cli.commands.system.output")
+    def test_users_list(self, mock_output):
+        from reolink_cli.commands.system import _cmd_users_list
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_user.return_value = [
+            {"userName": "admin", "level": "admin"},
+            {"userName": "viewer", "level": "guest"},
+        ]
+        client.get_online.return_value = [{"userName": "admin", "ip": "192.168.1.50"}]
+
+        _cmd_users_list(args, client)
+
+    def test_users_add(self, capsys):
+        from reolink_cli.commands.system import _cmd_users_add
+
+        args = Namespace(json=False, username="newuser", userpass="pass123", level="guest")
+        client = MagicMock()
+        client.add_user.return_value = {}
+
+        _cmd_users_add(args, client)
+
+        client.add_user.assert_called_once_with("newuser", "pass123", level="guest")
+
+    def test_users_delete_with_force(self, capsys):
+        from reolink_cli.commands.system import _cmd_users_delete
+
+        args = Namespace(json=False, username="olduser", force=True)
+        client = MagicMock()
+        client.delete_user.return_value = {}
+
+        _cmd_users_delete(args, client)
+
+        client.delete_user.assert_called_once_with("olduser")
+
+    def test_users_delete_without_force(self, capsys):
+        from reolink_cli.commands.system import _cmd_users_delete
+
+        args = Namespace(json=False, username="olduser", force=False)
+        client = MagicMock()
+
+        with pytest.raises(SystemExit) as exc_info:
+            _cmd_users_delete(args, client)
+        assert exc_info.value.code == 2
+        client.delete_user.assert_not_called()
+
+
+class TestTimeSetCommand:
+    """Tests for the time set command."""
+
+    def test_time_set(self, capsys):
+        from reolink_cli.commands.system import _cmd_time_set
+
+        args = Namespace(json=False, datetime="2026-02-10T14:30:00", timezone=None)
+        client = MagicMock()
+        client.set_time.return_value = {}
+
+        _cmd_time_set(args, client)
+
+        client.set_time.assert_called_once()
+
+
+class TestNtpCommands:
+    """Tests for NTP commands."""
+
+    @patch("reolink_cli.commands.system.output")
+    def test_ntp_status(self, mock_output):
+        from reolink_cli.commands.system import _cmd_ntp_status
+
+        args = Namespace(json=False)
+        client = MagicMock()
+        client.get_ntp.return_value = {
+            "enable": 1, "server": "pool.ntp.org", "port": 123,
+        }
+
+        _cmd_ntp_status(args, client)
+
+        data = mock_output.call_args[0][0]
+        assert data["NTP"] == "Enabled"
+        assert data["Server"] == "pool.ntp.org"
